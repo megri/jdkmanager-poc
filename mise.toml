@@ -1,0 +1,5 @@
+[tools]
+coursier = "2.1.21"
+java = "zulu-17"
+mill = "0.12.3"
+node = "22.12.0"

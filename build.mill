@@ -1,0 +1,28 @@
+package build
+
+
+import $ivy.`com.github.lolgab::mill-scalablytyped::0.1.15`
+import com.github.lolgab.mill.scalablytyped._
+
+import mill._, scalajslib._
+
+import mill.scalajslib.api.ModuleKind
+
+
+object extension extends ScalaJSModule {
+  def scalaVersion = "3.6.2"
+  def scalaJSVersion = "1.17.0"
+
+  override def scalacOptions: T[Seq[String]] = Seq("-Wunused:imports")
+
+  def moduleKind = ModuleKind.CommonJSModule
+
+  def moduleDeps = Seq(types)
+}
+
+
+object types extends ScalaJSModule with ScalablyTyped {
+  def scalaVersion = "3.6.2"
+  def scalaJSVersion = "1.17.0"
+  def scalablyTypedIncludeDev = true
+}

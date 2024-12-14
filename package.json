@@ -1,0 +1,63 @@
+{
+  "name": "jdkmanager",
+  "displayName": "JDKManager",
+  "description": "A JDK manager extension for VS Code",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension/fastlinkJS.dest/main.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "jdkmanager.discoverJdks",
+        "title": "Discover JDKs"
+      },
+      {
+        "command": "jdkmanager.reportJavaHome",
+        "title": "Report env.JAVA_HOME"
+      },
+      {
+        "command": "jdkmanager.selectJdk",
+        "title": "Select project JDK"
+      }
+    ],
+    "configuration": {
+      "title": "JDKManager",
+      "properties": {
+        "jdkmanager.showIntroduction": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show introduction message when extension loads.",
+          "scope": "application"
+        },
+        "jdkmanager.installedJdks": {
+          "type": "array",
+          "default": [],
+          "description": "Managed JDKs",
+          "scope": "application"
+        },
+        "jdkmanager.projectJdk": {
+          "type": ["number", "null"],
+          "default": null,
+          "description": "JDK to use for project",
+          "scope": "resource"
+        }
+      }
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "jdk-utils": "^0.5.1"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.9",
+    "@types/vscode": "^1.95.0"
+  }
+}

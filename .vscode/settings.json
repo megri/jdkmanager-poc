@@ -1,0 +1,12 @@
+{
+    "files.watcherExclude": {
+        "**/target": true
+    },
+    "[scala]": {
+        "editor.suggestSelection": "first",
+        "editor.formatOnPaste": false,
+        "editor.formatOnType": true,
+        "editor.indentSize": "tabSize",
+        "editor.tabSize": 4,
+    }
+}
