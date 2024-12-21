@@ -1,6 +1,7 @@
 # vscode-jdkmanager
-
 A proof-of-concept-extension to manage JDKs, built in Scala.
+
+<img width="865" alt="image" src="https://github.com/user-attachments/assets/063aaf90-050c-4002-9082-e122d039bd01" />
 
 ## Implemented commands
 - Discover JDKs — autodiscovers JDKs
