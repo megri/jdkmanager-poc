@@ -6,18 +6,18 @@ import scala.concurrent.Future
 import scala.scalajs.js
 import scala.scalajs.js.annotation.JSExportTopLevel
 import scala.scalajs.js.annotation.JSGlobal
-import scala.util.Failure
-import scala.util.Success
 
+import cps.*
+import cps.monads.FutureAsyncMonad
 import typings.vscode.mod as vscode
 
 import vscode.ConfigurationTarget
 
 
-extension [A](thenable: typings.std.PromiseLike[js.UndefOr[A]])
-    /** Useful for ignoring the result of vscode information messages, letting a chain progress
-     * without waiting for the user to interact with the message.
-     */
+extension [A](promiseLike: typings.std.PromiseLike[js.UndefOr[A]])
+    /** Useful for ignoring the result of vscode information messages, letting a chain progress without waiting for the
+      * user to interact with the message.
+      */
     def toBackground: Future[Unit] = Future.unit
 
 
@@ -56,7 +56,6 @@ trait Configuration extends vscode.WorkspaceConfiguration:
 
 
 object Configuration:
-    def apply: Configuration = load()
     def load(): Configuration = vscode.workspace.getConfiguration("jdkmanager").asInstanceOf
 
     extension (conf: Configuration)
@@ -95,7 +94,7 @@ def showIntroductionMessage(): Future[Boolean] =
     )
 
 
-def showNoInstalledJdksNotice() =
+def showNoInstalledJdksNotice(): Future[Boolean] =
     showBooleanModal(
         title = "No JDKs configured.",
         details = "Either discover JDKs installed on your system or edit the user config manually.",
@@ -110,59 +109,40 @@ def activate(context: vscode.ExtensionContext): Unit =
         vscode.window.showInformationMessage(s"JAVA_HOME from env = '${process.env.get("JAVA_HOME")}'").toBackground
 
     val discoverJdks = () =>
-        actions
-            .discover()
-            .flatMap: foundJdks =>
-                val jdks = foundJdks.map(foundJdk => JDK(foundJdk.path, foundJdk.version.major, foundJdk.version.full))
-                Configuration.load().setInstalledJdks(jdks)
-            .flatMap: configuredJdks =>
-                val displayString = s"${configuredJdks.size} JDK(s) configured."
-                vscode.window.showInformationMessage(displayString).toBackground
+        async[Future]:
+            val foundJdks = await(actions.discover())
+            val jdks = foundJdks.map(foundJdk => JDK(foundJdk.path, foundJdk.version.major, foundJdk.version.full))
+            await(Configuration.load().setInstalledJdks(jdks))
+            val displayString = s"${jdks.size} JDK(s) configured."
+            vscode.window.showInformationMessage(displayString).toBackground
 
     val selectJdk = () =>
         class JdkChoice(val jdk: JDK) extends vscode.QuickPickItem:
             this.setDescription(jdk.fullVersion)
             def label = s"${jdk.majorVersion}"
 
-        val shouldContinue =
+        async[Future]:
             if Configuration.load().installedJdks.isEmpty then
-                showNoInstalledJdksNotice().flatMap: shouldDiscover =>
-                    if shouldDiscover then discoverJdks().map(_ => true)
-                    else Future.successful(false)
-            else Future.successful(true)
+                val shouldDiscoverJDKs = await(showNoInstalledJdksNotice())
+                if shouldDiscoverJDKs then
+                    await(discoverJdks())
+                    val configuration = Configuration.load()
+                    val options = vscode.QuickPickOptions().setTitle("Choose JDK")
+                    val choices = configuration.installedJdks.map(JdkChoice(_))
 
-        shouldContinue.flatMap:
-            case true =>
-                val configuration = Configuration.load()
-                val options = vscode.QuickPickOptions().setTitle("Choose JDK")
-                val choices = configuration.installedJdks.map(JdkChoice(_))
-
-                vscode.window
-                    .showQuickPick_T(choices, options)
-                    .toFuture
-                    .flatMap: choice =>
-                        configuration.setProjectJdk(choice.get.jdk)
-                    .flatMap: jdk =>
+                    val choice = await(vscode.window.showQuickPick_T(choices, options).toFuture)
+                    choice.foreach: choice =>
+                        val jdk = await(configuration.setProjectJdk(choice.jdk))
                         val displayString = s"${jdk.majorVersion} (${jdk.homePath})"
                         vscode.window.showInformationMessage(s"Selected JDK: $displayString").toBackground
-            case false =>
-                Future.unit
 
-    val initResult =
+    async[Future]:
         val configuration = Configuration.load()
-        if configuration.showIntroduction then
-            for
-                shouldDiscoverJDKs <- showIntroductionMessage()
-                _ <- if shouldDiscoverJDKs then discoverJdks() else Future.unit
-                _ <- Configuration.load().setShowIntroduction(false)
-            yield ()
-        else if configuration.installedJdks.isEmpty then showNoInstalledJdksNotice()
-        else Future.unit
+        val shouldDiscoverJDKs =
+            (configuration.showIntroduction && await(showIntroductionMessage())) ||
+            (configuration.installedJdks.isEmpty && await(showNoInstalledJdksNotice()))
+        if shouldDiscoverJDKs then await(discoverJdks())
 
-    initResult.onComplete:
-        case Success(_) =>
-            vscode.commands.registerCommand("jdkmanager.discoverJdks", discoverJdks)
-            vscode.commands.registerCommand("jdkmanager.reportJavaHome", reportJavaHomeEnv)
-            vscode.commands.registerCommand("jdkmanager.selectJdk", selectJdk)
-        case Failure(exception) =>
-            throw exception
+    vscode.commands.registerCommand("jdkmanager.discoverJdks", discoverJdks)
+    vscode.commands.registerCommand("jdkmanager.reportJavaHome", reportJavaHomeEnv)
+    vscode.commands.registerCommand("jdkmanager.selectJdk", selectJdk)
